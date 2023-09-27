@@ -25,11 +25,11 @@ export default async function Home() {
             {isAuth && (<Button>Go to Chats</Button>)}
           </div>
 
-          <p className="max-w-xl mt-1 text-lg -text-slate-600">
+          <p className="max-w-xl mt-8 text-lg -text-slate-600">
             Join millions of students and professional to instantly chat with any PDF and understand research with AI.
           </p>
 
-          <div className="w-full mt-4">
+          <div className="w-full mt-6">
             { isAuth
               ? (<FileUpload />)
               : <Link href="/sign-in">
