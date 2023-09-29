@@ -1,15 +1,18 @@
 "use client";
-import React from "react";
+import React, {useState} from "react";
 import { useDropzone } from 'react-dropzone';
-import {Inbox} from "lucide-react";
+import {Inbox, Loader2} from "lucide-react";
 import {uploadToS3} from "@/lib/s3";
 import toast from "react-hot-toast";
 import {useMutation} from "@tanstack/react-query";
-import axios from "axios";
+import axios, {AxiosResponse} from "axios";
+import {NextResponse} from "next/server";
 
 const FileUpload = () => {
 
-	const { mutate } = useMutation({
+	const [isUploading, setIsUploading] = useState(false);
+
+	const { mutate, isLoading } = useMutation({
 		mutationFn: async ({
 			fileKey,
 			fileName
@@ -17,7 +20,7 @@ const FileUpload = () => {
 			fileKey: string,
 			fileName: string
 		}) => {
-			const response = await axios.post('/api/create-chat', { fileKey, fileName });
+			return await axios.post('/api/create-chat', { fileKey, fileName });
 		}
 	});
 
@@ -26,7 +29,7 @@ const FileUpload = () => {
 		maxFiles: 1,
 		maxSize: 5000000,
 		onDrop: async (acceptedFiles) => {
-			console.log(acceptedFiles);
+			setIsUploading(true);
 			const file = acceptedFiles[0];
 
 			if (file.size > 10 * 1024 * 1024) {
@@ -36,23 +39,26 @@ const FileUpload = () => {
 
 			try {
 				const data = await uploadToS3(file)
-				console.log(data);
+				setIsUploading(false);
 				if (!data || !data?.fileKey || !data?.fileName) {
 					toast.error("Error uploading file to S3");
 					return;
 				}
 
+				toast.success("File uploaded successfully! Please wait while we process your file...");
+
+				// Calling our BE to save the data into pinecone db
 				mutate(data, {
-					onSuccess: (data) => {
-						console.log(data)
+					onSuccess: (data: AxiosResponse<{message: string}>) => {
+						toast.success(data.data.message);
 					},
 					onError: (err) => {
 						console.error(err);
-						toast.error("Something went wrong!");
+						toast.error("Something went wrong while processing your file!");
 					}
 				});
 			} catch (e) {
-				console.error(e);
+				toast.error("Something went wrong!");
 			}
 		}
 	});
@@ -63,10 +69,17 @@ const FileUpload = () => {
 				className: 'border-dashed border-2 rounded-xl cursor-pointer bg- gray-50 py-8 flex justify-center items-center flex-col'
 			}) }>
 				<input { ...getInputProps() }/>
-				<>
-					<Inbox className="w-10 h-10 text-blue-500"/>
-					<p className="mt-2 text-sm text-slate-400">Drop PDF Here</p>
-				</>
+				{ (isUploading || isLoading) ? (
+					<>
+						<Loader2 className="h-10 w-10 text-blue-500 animate-spin"/>
+						<p className="mt-2 text-sm text-slate-400">Spilling tea to GPT...</p>
+					</>
+					) : (
+					<>
+						<Inbox className="w-10 h-10 text-blue-500"/>
+						<p className="mt-2 text-sm text-slate-400">Drop PDF Here</p>
+					</>
+				) }
 			</div>
 		</div>
 	)
