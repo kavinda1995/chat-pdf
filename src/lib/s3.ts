@@ -28,7 +28,8 @@ export async function uploadToS3(file: File) {
 			}).promise();
 
 		await upload
-			.then((data) => console.log('Upload success: ', data));
+			.then((data) => console.log('Upload success: ', data))
+			.catch((error) => console.error('Upload error: ', error))
 
 		return Promise.resolve({
 			fileKey,

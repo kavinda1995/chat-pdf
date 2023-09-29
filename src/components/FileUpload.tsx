@@ -3,9 +3,23 @@ import React from "react";
 import { useDropzone } from 'react-dropzone';
 import {Inbox} from "lucide-react";
 import {uploadToS3} from "@/lib/s3";
-import {Simulate} from "react-dom/test-utils";
+import toast from "react-hot-toast";
+import {useMutation} from "@tanstack/react-query";
+import axios from "axios";
 
 const FileUpload = () => {
+
+	const { mutate } = useMutation({
+		mutationFn: async ({
+			fileKey,
+			fileName
+		}: {
+			fileKey: string,
+			fileName: string
+		}) => {
+			const response = await axios.post('/api/create-chat', { fileKey, fileName });
+		}
+	});
 
 	const { getRootProps, getInputProps } = useDropzone({
 		accept: { 'application/pdf': ['.pdf'] },
@@ -16,13 +30,27 @@ const FileUpload = () => {
 			const file = acceptedFiles[0];
 
 			if (file.size > 10 * 1024 * 1024) {
-				alert("File is too big! Please upload a smaller file...");
+				toast.error("File is too big! Please upload a smaller file...");
 				return;
 			}
 
 			try {
 				const data = await uploadToS3(file)
 				console.log(data);
+				if (!data || !data?.fileKey || !data?.fileName) {
+					toast.error("Error uploading file to S3");
+					return;
+				}
+
+				mutate(data, {
+					onSuccess: (data) => {
+						console.log(data)
+					},
+					onError: (err) => {
+						console.error(err);
+						toast.error("Something went wrong!");
+					}
+				});
 			} catch (e) {
 				console.error(e);
 			}
